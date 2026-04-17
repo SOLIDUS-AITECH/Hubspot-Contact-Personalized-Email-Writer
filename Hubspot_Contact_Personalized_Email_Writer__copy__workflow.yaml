@@ -1,0 +1,98 @@
+version: '1.0'
+blocks:
+  9c58226a-2a30-478e-bb9d-983c8b6185da:
+    type: agent
+    name: 'Agent 1 '
+    inputs:
+      systemPrompt: |-
+        You are an AI assistant specialized in crafting personalized emails. Your primary task is to gather relevant information about a person and their company to create a customized and engaging email. Use web search tools like Exa to collect up-to-date and accurate details about the individual, including their professional background, achievements, and any recent news or activities related to them. Additionally, research the company they are associated with, focusing on its industry, recent developments, and key initiatives. Once you have gathered sufficient information, compose a personalized email that reflects an understanding of the recipient's interests and the company's context. Ensure the tone is professional yet personable, and tailor the content to align with the recipient's preferences and the purpose of the communication. Always verify the accuracy of the information you include and maintain a respectful and engaging tone throughout the email
+
+
+        You will respond only in this format:
+
+        Name
+        Email ID
+        Email Body
+      userPrompt: <parallel.currentItem>
+      model: gpt-5-mini
+      tools:
+        - type: serper
+          title: Serper
+          params:
+            num: '10'
+            type: search
+            apiKey: '{{SERPER_API_KEY}}'
+          toolId: serper_search
+          isExpanded: true
+          usageControl: auto
+    parentId: 53702f9f-4f8c-49d3-82d1-d5dde77e4622
+  3ae57943-8df6-459c-be32-fad8fe19d41e:
+    type: function
+    name: 'Function 1 '
+    inputs:
+      code: |-
+        const item =<parallel.currentItem>
+
+        const email = item?.properties?.email ?? null;
+        const firstName = item?.properties?.firstname ?? "";
+        const lastName = item?.properties?.lastname ?? "";
+
+        return {
+          email,
+          name: `${firstName} ${lastName}`.trim(),
+        };
+    parentId: c33c0a19-c4c8-4e06-aeb4-aaee281dd575
+  5e10568b-67c2-4a02-ad87-0cbc90ea89ea:
+    type: function
+    name: 'Function 2 '
+    inputs:
+      code: |-
+        results = <parallel2.results>
+
+        return results
+          .map(item => item.content)
+          .join("\n");
+    connections:
+      success: 7827e4c4-e2f0-48ca-bfe3-fb2f396f4cdd
+  7827e4c4-e2f0-48ca-bfe3-fb2f396f4cdd:
+    type: google_docs
+    name: 'Google Docs 1 '
+    inputs:
+      operation: create
+      title: Marketing emails
+      content: <function2.result>
+  18d458b9-1736-4318-98b9-752ff857f979:
+    type: hubspot
+    name: 'HubSpot 1 '
+    inputs:
+      operation: get_contacts
+      limit: '15'
+    connections:
+      success: c33c0a19-c4c8-4e06-aeb4-aaee281dd575
+  53702f9f-4f8c-49d3-82d1-d5dde77e4622:
+    type: parallel
+    name: 'Parallel 2 '
+    inputs:
+      collection: <parallel1.results>
+      distribution: <parallel1.results>
+    connections:
+      parallel:
+        start: 9c58226a-2a30-478e-bb9d-983c8b6185da
+        end: 5e10568b-67c2-4a02-ad87-0cbc90ea89ea
+  c33c0a19-c4c8-4e06-aeb4-aaee281dd575:
+    type: parallel
+    name: 'Parallel 1 '
+    inputs:
+      collection: <hubspot1.contacts>
+      distribution: <hubspot1.contacts>
+    connections:
+      parallel:
+        start: 3ae57943-8df6-459c-be32-fad8fe19d41e
+        end: 53702f9f-4f8c-49d3-82d1-d5dde77e4622
+  afe364e8-acdc-4ef2-b63f-5208d9fb0d45:
+    type: starter
+    name: Start
+    inputs:
+      startWorkflow: manual
+    connections:
+      success: 18d458b9-1736-4318-98b9-752ff857f979
